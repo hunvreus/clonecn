@@ -1,0 +1,5 @@
+- Install shadcn/ui components with `pnpm dlx shadcn@latest add ...` rather than hand-rolling local copies.
+- Prefer the installed registry components and standard shadcn composition whenever possible.
+- Prefer short, one-word names for database tables, columns, code symbols, and files when they stay clear. Use multi-word names only when needed for clarity.
+- Keep core product behavior behind stable same-origin HTTP APIs under `/api/*`; the TanStack UI and future CLI/agents should use the same API surface instead of duplicating behavior in UI-only server functions.
+- Keep API route handlers thin. Put validation, permissions, and database behavior in server-side service modules, backed by Drizzle schemas and migrations.
