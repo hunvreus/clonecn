@@ -268,7 +268,7 @@ function App() {
                 readOnly
                 aria-label="Theme URL"
                 value={url}
-                className="pr-12 font-mono text-xs"
+                className="!pr-7 font-mono text-xs"
               />
               <CopyButton
                 copied={copied === 'url'}
@@ -304,7 +304,7 @@ function App() {
                     aria-label="Theme CSS"
                     value={css}
                     onChange={(event) => setCss(event.target.value)}
-                    className="h-full resize-none pr-12 font-mono text-xs"
+                    className="h-full resize-none !pr-7 font-mono text-xs"
                   />
                   <CopyButton
                     copied={copied === 'css'}
@@ -442,8 +442,8 @@ function CopyButton({
         <Button
           type="button"
           variant="ghost"
-          size="icon"
-          className="absolute top-0.5 right-0.5 size-7"
+          size="icon-sm"
+          className="absolute top-0.5 right-0.5"
           aria-label={copied ? 'Copied' : label}
           onClick={onClick}
         >
