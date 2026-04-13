@@ -1,2 +1,3 @@
 @reference '../styles.css';
-@import '../../../ui/apps/v4/registry/styles/style-nova.css';
+
+/* Style-specific overrides can be added here when vendored into this repo. */
