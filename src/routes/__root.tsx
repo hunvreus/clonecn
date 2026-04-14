@@ -20,6 +20,11 @@ import vegaCss from '../theme/style-vega.css?url'
 
 const STYLE_LINK_ID_PREFIX = 'clonecn-style-css'
 const THEME_STYLE_ID = 'clonecn-theme-vars'
+const SITE_URL = 'https://clonecn.com'
+const SOCIAL_IMAGE_URL = `${SITE_URL}/social-card.png`
+const SITE_TITLE = 'clonecn'
+const SITE_DESCRIPTION =
+  'Generate and preview shadcn/ui themes from screenshots, URLs, and style directions.'
 const STYLE_CSS_URLS = {
   nova: novaCss,
   vega: vegaCss,
@@ -42,10 +47,59 @@ export const Route = createRootRoute({
         content: 'width=device-width, initial-scale=1',
       },
       {
-        title: 'clonecn',
+        title: SITE_TITLE,
+      },
+      {
+        name: 'description',
+        content: SITE_DESCRIPTION,
+      },
+      {
+        property: 'og:type',
+        content: 'website',
+      },
+      {
+        property: 'og:title',
+        content: SITE_TITLE,
+      },
+      {
+        property: 'og:description',
+        content: SITE_DESCRIPTION,
+      },
+      {
+        property: 'og:url',
+        content: SITE_URL,
+      },
+      {
+        property: 'og:image',
+        content: SOCIAL_IMAGE_URL,
+      },
+      {
+        name: 'twitter:card',
+        content: 'summary_large_image',
+      },
+      {
+        name: 'twitter:title',
+        content: SITE_TITLE,
+      },
+      {
+        name: 'twitter:description',
+        content: SITE_DESCRIPTION,
+      },
+      {
+        name: 'twitter:image',
+        content: SOCIAL_IMAGE_URL,
       },
     ],
     links: [
+      {
+        rel: 'canonical',
+        href: SITE_URL,
+      },
+      {
+        rel: 'icon',
+        type: 'image/svg+xml',
+        href: '/favicon.svg',
+      },
       {
         rel: 'stylesheet',
         href: appCss,

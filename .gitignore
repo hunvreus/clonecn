@@ -12,5 +12,6 @@ dist-ssr
 __unconfig*
 todos.json
 src/routeTree.gen.ts
+.data
 
 .codex

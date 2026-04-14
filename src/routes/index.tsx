@@ -4,12 +4,34 @@ import {
   CheckIcon,
   CopyIcon,
   MoonIcon,
+  RotateCcwIcon,
+  PenIcon,
+  ShareIcon,
   SunIcon,
 } from 'lucide-react'
 
 import { Button } from '#/components/ui/button'
 import { ButtonGroup } from '#/components/ui/button-group'
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+} from '#/components/ui/dialog'
+import {
+  InputGroup,
+  InputGroupAddon,
+  InputGroupButton,
+  InputGroupInput,
+} from '#/components/ui/input-group'
 import { Label } from '#/components/ui/label'
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from '#/components/ui/popover'
 import {
   Select,
   SelectContent,
@@ -23,13 +45,13 @@ import {
 import {
   Sheet,
   SheetContent,
+  SheetDescription,
   SheetHeader,
   SheetTitle,
 } from '#/components/ui/sheet'
 import { Skeleton } from '#/components/ui/skeleton'
 import { Spinner } from '#/components/ui/spinner'
 import { Textarea } from '#/components/ui/textarea'
-import { IconPlaceholder } from '#/components/icon-placeholder'
 import lumaCss from '#/theme/style-luma.css?url'
 import lyraCss from '#/theme/style-lyra.css?url'
 import maiaCss from '#/theme/style-maia.css?url'
@@ -37,7 +59,7 @@ import miraCss from '#/theme/style-mira.css?url'
 import novaCss from '#/theme/style-nova.css?url'
 import vegaCss from '#/theme/style-vega.css?url'
 
-export const Route = createFileRoute('/')({ component: App })
+export const Route = createFileRoute('/')({ component: HomeRoute })
 
 const Preview02Example = React.lazy(() => import('#/components'))
 
@@ -87,6 +109,10 @@ const MENU_TARGET_SLOTS = new Set([
   'dropdown-menu-sub-content',
   'combobox-content',
 ])
+const APP_VERSION = import.meta.env.VITE_APP_VERSION || '0.0.0'
+const REPO_URL = 'https://github.com/hunvreus/clonecn'
+const INSTALL_URL = `${REPO_URL}?tab=readme-ov-file#install`
+const AUTHOR_URL = 'https://github.com/hunvreus'
 const STYLE_CSS_URLS: Record<StyleName, string> = {
   nova: novaCss,
   vega: vegaCss,
@@ -96,36 +122,89 @@ const STYLE_CSS_URLS: Record<StyleName, string> = {
   luma: lumaCss,
 }
 
-type CopyTarget = 'css' | 'url'
+type CopyTarget = 'css' | 'share'
 type StyleName = (typeof STYLES)[number]
+type ThemeMode = 'light' | 'dark'
 type ThemeVars = Record<string, string>
+type ShareRecordResponse = {
+  id: string
+  css: string
+  mode: ThemeMode
+  style: StyleName
+}
+type ShareCreateResponse = {
+  id: string
+  path?: string
+  url?: string
+}
 
-function App() {
-  const [mode, setMode] = React.useState<'light' | 'dark'>('light')
+type ThemePageProps = {
+  shareId?: string
+}
+
+function HomeRoute() {
+  return <ThemePage />
+}
+
+export function ThemePage({ shareId }: ThemePageProps) {
+  const [mode, setMode] = React.useState<ThemeMode>('light')
   const [css, setCss] = React.useState('')
   const [copied, setCopied] = React.useState<CopyTarget | null>(null)
   const [initialized, setInitialized] = React.useState(false)
   const [editorOpen, setEditorOpen] = React.useState(false)
   const [style, setStyle] = React.useState<StyleName>(DEFAULT_STYLE)
+  const [shareOpen, setShareOpen] = React.useState(false)
+  const [shareBusy, setShareBusy] = React.useState(false)
+  const [shareLink, setShareLink] = React.useState('')
+  const [shareError, setShareError] = React.useState<string | null>(null)
   const defaultCss = React.useRef('')
   const copyTimeout = React.useRef<number | null>(null)
   const debouncedCss = useDebouncedValue(css, 500)
   const themePending = useDelayedFlag(initialized && css !== debouncedCss, 500)
-  const url = React.useMemo(
-    () => (css ? buildPreviewUrl(css, mode, style) : ''),
-    [css, mode, style],
-  )
 
   React.useEffect(() => {
-    const baselineCss = readCurrentCss()
-    const nextState = readCssStateFromLocation(baselineCss)
+    let active = true
 
-    defaultCss.current = baselineCss
-    setMode(nextState.mode)
-    setStyle(nextState.style)
-    setCss(nextState.css)
-    setInitialized(true)
-  }, [])
+    async function initialize() {
+      const baselineCss = readCurrentCss()
+      const nextState = readCssStateFromLocation(baselineCss)
+
+      defaultCss.current = baselineCss
+
+      if (shareId && !parseHashCss()) {
+        try {
+          const sharedTheme = await fetchSharedTheme(shareId)
+
+          if (!active) {
+            return
+          }
+
+          setMode(sharedTheme.mode)
+          setStyle(sharedTheme.style)
+          setCss(sharedTheme.css)
+          setInitialized(true)
+          return
+        } catch {
+          // Fall back to default location/hash state if share loading fails.
+        }
+      }
+
+      if (!active) {
+        return
+      }
+
+      setMode(nextState.mode)
+      setStyle(nextState.style)
+      setCss(nextState.css)
+      setInitialized(true)
+    }
+
+    void initialize()
+
+    return () => {
+      active = false
+    }
+  }, [shareId])
 
   React.useEffect(() => {
     if (!initialized) {
@@ -203,7 +282,12 @@ function App() {
   }, [])
 
   async function copy(value: string, target: CopyTarget) {
-    await window.navigator.clipboard.writeText(value)
+    try {
+      await window.navigator.clipboard.writeText(value)
+    } catch {
+      return false
+    }
+
     setCopied(target)
 
     if (copyTimeout.current) {
@@ -211,6 +295,24 @@ function App() {
     }
 
     copyTimeout.current = window.setTimeout(() => setCopied(null), 1200)
+    return true
+  }
+
+  async function shareTheme() {
+    setShareBusy(true)
+    setShareError(null)
+
+    try {
+      const link = await createShareLink(css, mode, style)
+      setShareLink(link)
+      setShareOpen(true)
+      await copy(link, 'share')
+    } catch {
+      setShareError('Could not create share link. Try again.')
+      setShareOpen(true)
+    } finally {
+      setShareBusy(false)
+    }
   }
 
   function resetTheme() {
@@ -238,22 +340,76 @@ function App() {
             <div className="flex items-center gap-1">
               {themePending && <Spinner className="text-muted-foreground" />}
               <ButtonGroup>
-                <Button
-                  type="button"
-                  size="sm"
-                  variant="ghost"
-                  aria-label={copied === 'url' ? 'Copied URL' : 'Copy URL'}
-                  onClick={() => copy(url, 'url')}
-                >
-                  <CopyIcon />
-                  {copied === 'url' ? 'Copied URL' : 'Copy URL'}
-                </Button>
+                <Popover open={shareOpen} onOpenChange={setShareOpen}>
+                  <PopoverTrigger asChild>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="ghost"
+                      aria-label={
+                        copied === 'share' ? 'Copied link' : 'Share theme'
+                      }
+                      onClick={() => {
+                        void shareTheme()
+                      }}
+                      disabled={shareBusy}
+                    >
+                      <ShareIcon />
+                      {shareBusy
+                        ? 'Sharing…'
+                        : copied === 'share'
+                          ? 'Copied Link'
+                          : 'Share'}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent align="end" className="w-80 p-2">
+                    <div className="grid gap-2">
+                      <InputGroup>
+                        <InputGroupInput
+                          readOnly
+                          value={shareLink}
+                          placeholder={
+                            shareBusy
+                              ? 'Creating link...'
+                              : 'Share link appears here.'
+                          }
+                          className="h-7 font-mono text-xs"
+                        />
+                        <InputGroupAddon align="inline-end">
+                          <InputGroupButton
+                            type="button"
+                            variant="ghost"
+                            size="icon-xs"
+                            aria-label={
+                              copied === 'share'
+                                ? 'Copied link'
+                                : 'Copy share link'
+                            }
+                            disabled={!shareLink}
+                            onClick={() => {
+                              if (shareLink) {
+                                void copy(shareLink, 'share')
+                              }
+                            }}
+                          >
+                            {copied === 'share' ? <CheckIcon /> : <CopyIcon />}
+                          </InputGroupButton>
+                        </InputGroupAddon>
+                      </InputGroup>
+                      {shareError ? (
+                        <p className="text-xs text-destructive">{shareError}</p>
+                      ) : null}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Button
                   type="button"
                   size="sm"
                   variant="ghost"
                   aria-label={copied === 'css' ? 'Copied CSS' : 'Copy CSS'}
-                  onClick={() => copy(buildCopyCss(css, style), 'css')}
+                  onClick={() => {
+                    void copy(buildCopyCss(css, style), 'css')
+                  }}
                 >
                   <CopyIcon />
                   {copied === 'css' ? 'Copied CSS' : 'Copy CSS'}
@@ -266,29 +422,8 @@ function App() {
                 aria-label="Edit theme"
                 onClick={() => setEditorOpen(true)}
               >
-                <IconPlaceholder
-                  lucide="SlidersHorizontalIcon"
-                  tabler="IconAdjustmentsHorizontal"
-                  hugeicons="SlidersHorizontalIcon"
-                  phosphor="SlidersHorizontalIcon"
-                  remixicon="RiEqualizerLine"
-                />
+                <PenIcon />
                 Edit theme
-              </Button>
-              <Button
-                type="button"
-                variant="ghost"
-                size="icon-sm"
-                aria-label="Reset theme"
-                onClick={resetTheme}
-              >
-                <IconPlaceholder
-                  lucide="RotateCcwIcon"
-                  tabler="IconRefresh"
-                  hugeicons="RefreshIcon"
-                  phosphor="ArrowClockwiseIcon"
-                  remixicon="RiRefreshLine"
-                />
               </Button>
               <Button
                 type="button"
@@ -299,6 +434,7 @@ function App() {
               >
                 {mode === 'light' ? <MoonIcon /> : <SunIcon />}
               </Button>
+              <AboutDialog />
             </div>
           </header>
 
@@ -313,11 +449,25 @@ function App() {
             >
               <SheetHeader>
                 <SheetTitle>Edit Style</SheetTitle>
+                <SheetDescription>
+                  Choose a base component style and edit CSS theme variables.
+                </SheetDescription>
               </SheetHeader>
 
               <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pb-4">
                 <div className="grid shrink-0 gap-2">
-                  <Label htmlFor="theme-style">Component style</Label>
+                  <div className="flex items-center justify-between gap-2">
+                    <Label htmlFor="theme-style">Component style</Label>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={resetTheme}
+                    >
+                      <RotateCcwIcon />
+                      Reset
+                    </Button>
+                  </div>
                   <Select value={style} onValueChange={changeStyle}>
                     <SelectTrigger id="theme-style" className="w-full">
                       <SelectValue placeholder="Select style" />
@@ -373,6 +523,76 @@ function InitialLayout() {
   )
 }
 
+function AboutDialog() {
+  return (
+    <Dialog>
+      <DialogTrigger asChild>
+        <Button
+          type="button"
+          size="icon-sm"
+          variant="ghost"
+          aria-label="About clonecn"
+        >
+          <img
+            src="/favicon.svg"
+            alt=""
+            className="size-4 rounded-sm"
+          />
+          <span className="sr-only">About clonecn</span>
+        </Button>
+      </DialogTrigger>
+      <DialogContent className="w-[20rem] max-w-[calc(100vw-2rem)]">
+        <DialogHeader className="items-center gap-3 text-center">
+          <img src="/favicon.svg" alt="" className="size-15 rounded-2xl" />
+          <DialogTitle className="text-base font-semibold">clonecn</DialogTitle>
+          <DialogDescription>
+            An agent skill to generate shadcn/ui themes from design references.
+          </DialogDescription>
+        </DialogHeader>
+        <div className="rounded-lg border">
+          <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
+            <span className="text-sm text-muted-foreground">Version</span>
+            <span className="text-sm">{APP_VERSION}</span>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
+            <span className="text-sm text-muted-foreground">Install</span>
+            <a
+              href={INSTALL_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              README install
+            </a>
+          </div>
+          <div className="flex items-center justify-between gap-3 border-b px-4 py-2.5">
+            <span className="text-sm text-muted-foreground">GitHub</span>
+            <a
+              href={REPO_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              hunvreus/clonecn
+            </a>
+          </div>
+          <div className="flex items-center justify-between gap-3 px-4 py-2.5">
+            <span className="text-sm text-muted-foreground">Built by</span>
+            <a
+              href={AUTHOR_URL}
+              target="_blank"
+              rel="noreferrer noopener"
+              className="text-sm font-medium text-primary hover:underline"
+            >
+              @hunvreus
+            </a>
+          </div>
+        </div>
+      </DialogContent>
+    </Dialog>
+  )
+}
+
 const PreviewPane = React.memo(function Preview() {
   return (
     <div>
@@ -421,29 +641,6 @@ function useDelayedFlag(value: boolean, delay: number) {
   }, [value, delay])
 
   return delayed
-}
-
-function CopyButton({
-  copied,
-  label,
-  onClick,
-}: {
-  copied: boolean
-  label: string
-  onClick: () => void
-}) {
-  return (
-    <Button
-      type="button"
-      variant="ghost"
-      size="icon-sm"
-      className="absolute top-0.5 right-0.5"
-      aria-label={copied ? 'Copied' : label}
-      onClick={onClick}
-    >
-      {copied ? <CheckIcon /> : <CopyIcon />}
-    </Button>
-  )
 }
 
 function parseHashCss() {
@@ -651,11 +848,7 @@ function readVars(): ThemeVars {
   )
 }
 
-function buildPreviewUrl(
-  css: string,
-  mode: 'light' | 'dark',
-  style: StyleName,
-) {
+function buildPreviewUrl(css: string, mode: ThemeMode, style: StyleName) {
   if (typeof window === 'undefined') {
     return ''
   }
@@ -669,7 +862,7 @@ function buildPreviewUrl(
   return `${window.location.origin}${window.location.pathname}#${params.toString()}`
 }
 
-function syncBrowserUrl(css: string, mode: 'light' | 'dark', style: StyleName) {
+function syncBrowserUrl(css: string, mode: ThemeMode, style: StyleName) {
   if (typeof window === 'undefined') {
     return
   }
@@ -706,4 +899,67 @@ function block(selector: string, vars: ThemeVars) {
     return value ? [`  --${key}: ${value};`] : []
   })
   return `${selector} {\n${lines.join('\n')}\n}`
+}
+
+async function fetchSharedTheme(shareId: string): Promise<ShareRecordResponse> {
+  const response = await fetch(`/api/share/${encodeURIComponent(shareId)}`)
+  if (!response.ok) {
+    throw new Error('Failed to load shared theme')
+  }
+
+  const data = (await response.json()) as Partial<ShareRecordResponse>
+
+  if (
+    typeof data.id !== 'string' ||
+    typeof data.css !== 'string' ||
+    (data.mode !== 'light' && data.mode !== 'dark') ||
+    !normalizeStyle(data.style)
+  ) {
+    throw new Error('Invalid shared theme payload')
+  }
+
+  return {
+    id: data.id,
+    css: data.css,
+    mode: data.mode,
+    style: data.style,
+  }
+}
+
+async function createShareLink(
+  css: string,
+  mode: ThemeMode,
+  style: StyleName,
+): Promise<string> {
+  const response = await fetch('/api/share', {
+    method: 'POST',
+    headers: {
+      'content-type': 'application/json',
+    },
+    body: JSON.stringify({ css, mode, style }),
+  })
+
+  if (!response.ok) {
+    throw new Error('Failed to create share link')
+  }
+
+  const data = (await response.json()) as Partial<ShareCreateResponse>
+
+  if (typeof window === 'undefined') {
+    throw new Error('Window unavailable')
+  }
+
+  if (typeof data.url === 'string') {
+    return data.url
+  }
+
+  if (typeof data.path === 'string') {
+    return `${window.location.origin}${data.path}`
+  }
+
+  if (typeof data.id === 'string') {
+    return `${window.location.origin}/share/${data.id}`
+  }
+
+  throw new Error('Invalid share response')
 }

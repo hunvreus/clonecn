@@ -55,3 +55,31 @@ Build:
 ```bash
 pnpm build
 ```
+
+## Share links storage
+
+Share links are created only when the user clicks `Share` in the UI. The app stores payloads at `/api/share` and serves them via `/share/:id`.
+
+### Cloudflare Workers (prod)
+
+Use a D1 binding named `DB`.
+
+```toml
+[[d1_databases]]
+binding = "DB"
+database_name = "clonecn"
+database_id = "<your-d1-database-id>"
+```
+
+No extra env var is required for D1 itself.
+
+### Local development
+
+- `wrangler dev`: D1 runs locally on SQLite automatically (same `DB` binding name).
+- `pnpm dev` (without Wrangler): the API falls back to a local SQLite file at `.data/share.db`.
+
+Optional override for the fallback path:
+
+```bash
+CLONECN_SHARE_DB_PATH=.data/share.db
+```

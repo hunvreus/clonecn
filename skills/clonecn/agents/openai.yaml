@@ -1,4 +1,4 @@
 interface:
   display_name: 'clonecn - shadcn/ui theme generator'
   short_description: 'Generate a shadcn/ui theme'
-  default_prompt: 'Use $clonecn to Generate or modify a shadcn/ui theme from a screenshot, URL, reference app, or style direction.'
+  default_prompt: 'Use $clonecn to generate or modify a shadcn/ui theme from a screenshot, URL, reference app, or style direction.'
