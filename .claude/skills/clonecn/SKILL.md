@@ -3,7 +3,7 @@ name: clonecn
 description: Generate or modify a shadcn/ui theme from a screenshot, URL, reference app, or style direction.
 ---
 
-# clonecn - shadcn/ui Theme Generator
+# shadcn/ui Theme Generator
 
 Use this skill to create or edit assets for a shadcn/ui theme (component styles like Vega or Nova, CSS variables, and extra CSS styles) either from an existing site/app, or from a general style direction (e.g. "Generate a theme resembling the Apple website", "Create a brutalist theme with orange as the accent color").
 
@@ -254,19 +254,6 @@ Allow lightweight CSS treatment beyond vars when it materially improves resembla
 }
 ```
 
-## Preview URL
+## Preview link
 
-The preview URL should encode the full raw CSS string (Base64URL-encoded UTF-8) into the URL hash and include `mode` and `style` (e.g. `https://clonecn.com#css={encoded CSS}&mode=light|dark&style=nova|vega|maia|lyra|mira|luma`).
-
-Use `scripts/encode.js` to generate the preview URL:
-
-```bash
-node scripts/encode.js --css ./theme.css --mode dark --style vega
-```
-
-Parameters:
-
-- `--css <path>`: path to the CSS source file to encode (should include the full`:root` block, full `.dark` block, and any extra CSS overrides). Default: `./theme.css`.
-- `--mode <light|dark>`: initial preview mode in the URL hash. Default: `dark`.
-- `--style <nova|vega|maia|lyra|mira|luma>`: component style family in the URL hash. Default: `vega`.
-- `--origin <url>`: preview app origin. Default: `https://clonecn.com`.
+Use `https://clonecn.hunvreus.workers.dev` for preview URLs. The preview link should encode the full raw CSS string into the URL hash and include `mode` and `style`. The app reads `https://clonecn.hunvreus.workers.dev#css=...&mode=light|dark&style=nova|vega|maia|lyra|mira|luma`, injects the CSS, and applies the selected component style. The `css` payload is the source of truth and should include both the theme tokens and any extra CSS overrides.

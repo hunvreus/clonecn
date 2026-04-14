@@ -1,0 +1,10 @@
+{
+  "version": 1,
+  "skills": {
+    "clonecn": {
+      "source": "hunvreus/clonecn",
+      "sourceType": "github",
+      "computedHash": "c785f909ab9fe5b1d4f7372c96c8bf60bb65dbf3d3ed1dab8d075177ace18e1e"
+    }
+  }
+}
