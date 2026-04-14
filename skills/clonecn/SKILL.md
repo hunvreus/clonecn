@@ -1,28 +1,30 @@
 ---
 name: clonecn
 description: Generate or modify a shadcn/ui theme from a screenshot, URL, reference app, or style direction.
-metadata:
-  short-description: Generate clonecn shadcn/ui themes
 ---
 
-# clonecn Theme Generator
+# shadcn/ui Theme Generator
 
-Use this skill to create or edit assets for a shadcn/ui theme (CSS variables, CSS styles and component styles like Vega or Nova) either from an existing site/app, or from a general style direction (e.g. "Generate a theme resembling the Apple website", "Create a brutalist theme with orange as the accent color").
+Use this skill to create or edit assets for a shadcn/ui theme (component styles like Vega or Nova, CSS variables, and extra CSS styles) either from an existing site/app, or from a general style direction (e.g. "Generate a theme resembling the Apple website", "Create a brutalist theme with orange as the accent color").
 
 ## Inputs
 
-- Screenshot of the site/app to copy
+- Screenshots of the site/app to copy
 - URL of the site/app to copy (e.g. "apple.com")
 - Site/app name to copy (e.g. "Apple website")
 - General style direction (e.g. "brutalist website with orange as an accent color")
 
-If the user provided a screenshot, use those first.
+If the user provided a URL or site/app name:
+
+- If you know the site/app, create a description of the style.
+- Retrieve screenshots of the site/app, either through web search or using Playwright if available (see "Playwright" below).
+- Retrieve computed CSS styles for key controls (button, input, card, surface, etc) using Playwright if available  (see "Playwright" below).
 
 If the user hasn't provided anything, explain to him what the possible inputs are and ask him to provide one.
 
-## Dependencies
+## Playwright
 
-**This skill may need Playwright**. If the user provided a URL (e.g. "apple.com") or site/app name as a reference (e.g. "Apple website"), check if Playwright is available in the environment. Prefer ad hoc Playwright CLI usage via `pnpm dlx playwright@latest ...` when that is practical, because it avoids adding Playwright to the workspace dependencies. For example:
+To use Playwright, check if it is available in the environment. Prefer ad hoc Playwright CLI usage via `pnpm dlx playwright@latest ...` when that is practical, because it avoids adding Playwright to the workspace dependencies. For example:
 
 ```bash
 pnpm dlx playwright@latest install chromium
@@ -31,153 +33,43 @@ pnpm dlx playwright@latest screenshot https://posthog.com posthog.png
 
 If ad hoc CLI usage is not practical and the task clearly benefits from Playwright, then install it in the workspace. If the user provided a screenshot, you do not need it.
 
-## Steps
+## Workflow
 
-1. **Design reference**. Based on user input, try to define the design reference:
-   1. If the user provided no visual reference and instead used a general direction, use that.
-   2. Otherwise, if the user provided a screenshot, use that.
-   3. Otherwise, if the user provided a URL or site/app name, use Playwright to retrieve screenshots of the app/site along with the CSS for the relevant elements: page background and text colors, buttons, dialogs, etc. Prefer `pnpm dlx playwright@latest ...` if possible.
+1. **Design reference**. Based on user input (screenshots, description, URLs, etc), try to define the design reference: colors (primary, secondary, accent, background, foreground, etc), spacing, style (e.g. brutalist, flat, skeuomorphic, minimalist,...), etc.
 2. **Define shadcn/ui theme**. Generate a shadcn/ui theme that matches the design reference as closely as possible (for more details see "shadcn/ui theming"):
-   1. Pick a component style first (Vega, Nova, Maia, Lyra, Mira or Luma) as it impacts critical aspects of the design (e.g. spacing, rounded or straight corners, etc) that cannot be controlled by CSS variables.
-   2. Once that is done, generate dark and light blocks of CSS variables, matching colors, border radius, typography, etc.
-      - `:root` must be a real light theme and `.dark` must be a real dark theme, unless the user explicitly asked for a single-mode theme.
-      - Do not duplicate a dark palette into both `:root` and `.dark`, or a light palette into both, even if the reference only shows one mode.
-      - If the reference only shows one mode, derive the missing mode from the same visual language so the light/dark switch still works meaningfully.
-   3. If crucial aspects of the design reference cannot be matched with the component style and CSS variables, consider adding additional CSS styles (e.g. background patterns, special treatment on buttons, etc).
-3. **Finalize**.
-   1. Do a validation pass against the reference and do not return the theme if it still looks like the untouched preset.
-      - Confirm that `mode=light` and `mode=dark` produce materially different results when both modes were requested.
-   2. Return concise output with:
-      - `**Summary**: {one short style summary}`
-      - if a screenshot was captured and it materially helps the user judge the match, include `**Screenshot**:` and then include it directly in the response
-      - `**Style**: {component style}`
-      - `**CSS**:`
-      - a fenced code block with the CSS (both CSS variables and extra CSS if any)
-      - if a preview URL is available, include `[See preview]({URL})`
-
-## Conversation protocol
-
-- If input is unclear or underspecified, ask 1-2 targeted questions and include one concrete example direction the user can pick.
-- If input is clear, state a one-sentence plan that mentions only what will change, then generate.
-- After generation, give a short delta-only summary focused on what changed (tokens/components), not a full restatement of intent.
-
-## Prompt-to-token mapping
-
-Use these defaults unless the user specifies otherwise:
-
-- "Make it [color]" or broad recolor requests: prioritize brand/action tokens first (`--primary`, `--secondary`, `--accent`, `--ring`), then align `--chart-*` and sidebar emphasis tokens to the same hue family.
-- "Background darker/lighter" or surface-tone requests: modify surface tokens (`--background`, `--card`, `--popover`, `--muted`, `--sidebar`) and their foreground pairs, not brand/action tokens.
-- "Change [token] in dark/light mode": modify only the requested mode block (`:root` or `.dark`) unless the user asks to mirror both.
-- If the user references a base theme or current theme and asks for a narrow change, preserve non-requested token families (especially radius, shadow model, and typography behavior).
-
-## Style archetypes for complex themes
-
-When the request names a broad style, commit consistently across radius, borders, shadows, and control chrome:
-
-- Flat: keep surfaces close in tone, minimize or remove shadows, preserve clear borders, and avoid glossy button treatments.
-- Minimal: use subtle surface steps, restrained borders/shadows, and clean control chrome with quiet focus rings.
-- Brutalist: use square corners (`radius` near `0`), high-contrast borders, and hard offset shadows (low blur, stronger opacity, limited spread/offset).
-
-Do not blend conflicting archetypes unless the user explicitly asks for a hybrid.
+  1. Pick a component style first (Vega, Nova, Maia, Lyra, Mira or Luma) that most closely match the screenshot.
+  2. Generate distinct dark and light blocks of CSS variables to match the design reference.
+  3. If crucial aspects of the design reference cannot be matched with the component style and CSS variables, consider adding additional CSS styles (e.g. background patterns, special treatment on buttons, etc).
+4. **Adjust**. Genereate a preview URLCheck the generated output and compare it to the design reference. Make adjustments if needed.
+3. **Finalize**. Return a concise output (in this exact order):
+  - `**Summary**: {one short style summary}`
+  - (Optional) `**Screenshot**:` followed by the screenshot captured with Playwright (if any).
+  - `**Style**: {component style}`
+  - `**CSS**:` followed by a fenced code block with the CSS (both CSS variables and extra CSS if any).
+  - `**Preview**: [Open in your browser]({preview URL})` (see "Preview URL" below). Use the LATEST version of the theme (after adjustments).
 
 ## shadcn/ui theming
 
 shadcn/ui themes are broken down in 3 parts:
 
-- Components styles: Vega, Nova, Maia, Lyra, Mira or Luma. This defines aspects of the theme that can't be customized by CSS variables.
-- CSS variables: `:root` and `.dark` blocks of CSS variables. That's the "meat" of the theme that defines colors, fonts, shadows, etc.
+- Components styles: Vega, Nova, Maia, Lyra, Mira or Luma.
+- CSS variables: `:root` and `.dark` blocks of CSS variables.
 - (Optional) Extra CSS: useful to override or extend styles when CSS variables and component styles are not enough.
 
 ### Components styles
 
-Component styles are the baseline shadcn/ui style families. They define the default shape language that sits underneath your theme tokens: component spacing, density, border treatment, default shadow behavior, and how rounded or sharp controls feel. Pick this first, because some visual traits are easier to get by choosing the right family than by fighting the preset with extra CSS later.
+Baseline shadcn/ui style families that define the default shape language that sits underneath your theme tokens: component spacing, density, border treatment, default shadow behavior, and how rounded or sharp controls feel.
 
-The descriptions below are based on the local registry CSS files, especially the default radius, spacing, and control treatment used by buttons, inputs, dialogs, and grouped controls.
+Pick one of the following 6 options based on what is closest to the design direction:
 
-- `Nova`: balanced and general-purpose, with medium rounding (`rounded-lg` in many controls) and standard app density. Good default when the reference is modern but not highly stylized.
-- `Vega`: similar to Nova but a little firmer and more structured, with more obvious outline/button treatment and medium rounding (`rounded-md` to `rounded-xl`). Good for denser product UIs.
-- `Maia`: the softest and most rounded family, with pill-like buttons and large radii (`rounded-4xl`, `rounded-full`). Good for friendlier or more consumer-feeling interfaces.
-- `Lyra`: the sharpest family, with many controls using `rounded-none`, smaller text, and a flatter, more editorial feel. Good when the reference is square, restrained, or intentionally severe.
-- `Mira`: compact and product-dense, with smaller text, tighter spacing, and modest rounding (`rounded-md`, `rounded-sm`). Good for tighter utility-heavy app UIs.
-- `Luma`: rounded and airy, especially in form controls (`rounded-3xl`, `rounded-full`), with softer inputs and brighter, more open chrome. Good for glossy or friendly interfaces with soft controls.
-
-These style families are implemented in the local CSS files imported by clonecn:
-
-- `src/theme/style-nova.css`
-- `src/theme/style-vega.css`
-- `src/theme/style-maia.css`
-- `src/theme/style-lyra.css`
-- `src/theme/style-mira.css`
-- `src/theme/style-luma.css`
-
-If the chosen family still fights the reference, keep the closest one for the general layout rhythm and then override the remaining differences with theme tokens and extra CSS.
-
-### shadcn/ui gotchas
-
-shadcn/ui already gives many components a built-in visual model. When generating a theme, do not assume you are styling blank elements.
-
-- Inspect the base component's existing border, radius, shadow, and background treatment before adding extra CSS.
-- Do not stack a new border/shadow model on top of an existing one unless they are intentionally compatible.
-- Treat the chosen component style family as structural, not cosmetic. If its default geometry fights the reference, switch families before piling on overrides.
-- When the reference depends on component chrome, do not rely on tokens alone. Override the specific component classes involved.
-- Validate buttons, inputs, cards, dialogs, and navigation separately. It is not enough that the primary color is merely present somewhere.
-- Treat light and dark mode as separate deliverables. The mode switch should produce a meaningful visual change, not the same palette duplicated twice.
-- Watch for shadcn/ui artifacts such as default neutral borders, inherited rounded corners, muted hover layers, focus rings, and `bg-background` or `bg-secondary` fills bleeding through.
-- For saturated CTA buttons, make the fill, edge, and depth read as one object. Avoid pale or translucent rims unless the reference clearly has them.
-- If using gradients on buttons, ensure `bg-clip-padding`, border color, and box-shadow do not create a halo around the button.
-
-### Buttons
-
-Buttons need their own treatment. In shadcn/ui, button chrome is a stack of variant classes, border, fill, radius, ring, focus styling, and sometimes clipping or highlight behavior. Do not treat them as simple token-colored rectangles.
-
-- Evaluate `default`, `secondary`, `outline`, and `ghost` separately.
-- Treat CTA button borders separately from card and input borders.
-- Evaluate fill, edge, highlight, shadow, and focus ring as one system.
-- If the reference has flat product buttons, avoid translucent rims, generic outline borders, and default neutral shadcn edge treatment.
-- If the reference has desktop-like depth, prefer an explicit edge color plus bottom shadow over a generic neutral border.
-- If the reference has soft or pill-like buttons, pick a component style family that already supports that before piling on overrides.
-
-Useful button recipes:
-
-- `Flat SaaS CTA`: solid fill, slightly darker edge, no pale top rim, restrained shadow, quiet ring.
-- `Desktop/Product CTA`: integrated edge color, subtle inset top highlight, firmer bottom shadow, tight or square radius.
-- `Soft Consumer CTA`: low-contrast edge, softer shadow, larger radius, gentler ring.
-
-Common button failure modes:
-
-- halo border around a saturated fill
-- default gray outline leaking through the custom fill
-- button border and shadow reading as separate layers
-- focus ring color clashing with the button chrome
-- all button variants inheriting the same edge treatment when the reference differentiates them
-
-### Inputs
-
-Inputs and selects also need dedicated treatment. In shadcn/ui they often keep default neutral chrome unless you override them directly, so token changes alone often leave them looking like generic shadcn controls.
-
-- Evaluate `Input`, `Textarea`, `Select`, and other outline-style controls separately from buttons and cards.
-- Treat the input surface, border, placeholder/muted text, and focus ring as one system.
-- If the reference has stronger product chrome, do not stop at `--input`; override the relevant `.cn-input`, `.cn-textarea`, `.cn-select-trigger`, and `.cn-native-select` classes directly.
-- If the reference has very quiet inputs, remove unintended highlights, excessive contrast, and default gray edge treatment.
-- If the reference has dense utility-style controls, ensure radius and spacing align with that density instead of staying at generic shadcn defaults.
-
-Useful input recipes:
-
-- `Flat Product Input`: quiet surface tint, visible but restrained edge, minimal shadow, crisp focus ring.
-- `Desktop Utility Input`: stronger edge contrast, subtle inset highlight only if the reference clearly has it, tight radius, compact feel.
-- `Soft Consumer Input`: softer surface, lower-contrast edge, larger radius, lighter ring treatment.
-
-Common input failure modes:
-
-- generic gray outline treatment left in place
-- border contrast too weak or too strong for the surface
-- ring color or thickness feeling unrelated to the rest of the theme
-- input surface reading as plain white when the reference uses tinted controls
-- inputs, selects, and textareas not matching each other
+- `nova`: balanced and general-purpose, with medium rounding (`rounded-lg` in many controls) and standard app density. Good default when the reference is modern but not highly stylized.
+- `vega`: similar to Nova but a little firmer and more structured, with more obvious outline/button treatment and medium rounding (`rounded-md` to `rounded-xl`). Good for denser product UIs.
+- `maia`: the softest and most rounded family, with pill-like buttons and large radii (`rounded-4xl`, `rounded-full`). Good for friendlier or more consumer-feeling interfaces.
+- `lyra`: the sharpest family, with many controls using `rounded-none`, smaller text, and a flatter, more editorial feel. Good when the reference is square, restrained, or intentionally severe.
+- `mira`: compact and product-dense, with smaller text, tighter spacing, and modest rounding (`rounded-md`, `rounded-sm`). Good for tighter utility-heavy app UIs.
+- `luma`: rounded and airy, especially in form controls (`rounded-3xl`, `rounded-full`), with softer inputs and brighter, more open chrome. Good for glossy or friendly interfaces with soft controls.
 
 ### CSS variables (aka theme tokens)
-
-The most important part of a shadcn/ui theme is the token set that lives in your CSS file under `:root` and `.dark`.
 
 | Token                                            | What it controls                                       | Used by                                                                      |
 | ------------------------------------------------ | ------------------------------------------------------ | ---------------------------------------------------------------------------- |
@@ -211,7 +103,26 @@ Allow lightweight CSS treatment beyond vars when it materially improves resembla
 - Custom radius language,
 - Etc.
 
-This extra CSS will live directly under the exported theme vars.
+### Guidelines
+
+- Always provide dark and light themes, unless the user specifically requested otherwise. When doing so, try to use the light and dark themes from the reference (e.g. user provided screenshots, Playwright screenshots, CSS), and if not possible derive specific colors for each theme that take into account the context of the dark or light theme (e.g. you may need a lighter shade for `--primary` when in dark mode).
+- Prefer OKLCH colors.
+- Ignore custom fonts, instead just use the default `font-mono` and `font-sans` font families.
+- shadcn/ui gives components default styles (border, radius, shadow, etc). Do not assume you are styling blank elements.
+- For `--radius`, use `rem` not `px` and keep it in a sane range: `0rem` to `1.25rem` (hard max `2rem` only for explicit user requests).
+- Buttons:
+  - Buttons have the following classes:
+    - `cn-button group/button inline-flex shrink-0 items-center justify-center whitespace-nowrap transition-all outline-none select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0`
+    - Component style defaults (nova) applied to `cn-button`: `focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 rounded-lg border border-transparent bg-clip-padding text-sm font-medium focus-visible:ring-3 aria-invalid:ring-3 active:not-aria-[haspopup]:translate-y-px [&_svg:not([class*='size-'])]:size-4`
+    - variant and size classes
+  - If using gradients on buttons, ensure `bg-clip-padding`, border color, and box-shadow do not create a halo around the button.
+  - Evaluate `default`, `secondary`, `outline`, and `ghost` separately.
+  - If the reference has stronger product chrome, override the `.cn-button` class directly.
+- Inputs:
+  - Inputs have the following classes:
+    - `cn-input w-full min-w-0 outline-none file:inline-flex file:border-0 file:bg-transparent file:text-foreground placeholder:text-muted-foreground disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50`
+    - Component style defaults (nova) applied to `cn-input`: `dark:bg-input/30 border-input focus-visible:border-ring focus-visible:ring-ring/50 aria-invalid:ring-destructive/20 dark:aria-invalid:ring-destructive/40 aria-invalid:border-destructive dark:aria-invalid:border-destructive/50 disabled:bg-input/50 dark:disabled:bg-input/80 h-8 rounded-lg border bg-transparent px-2.5 py-1 text-base transition-colors file:h-6 file:text-sm file:font-medium focus-visible:ring-3 aria-invalid:ring-3 md:text-sm`
+  - If the reference has stronger product chrome, do not stop at `--input`; override the relevant `.cn-input`, `.cn-textarea`, `.cn-select-trigger`, and `.cn-native-select` classes directly.
 
 ### Example
 
@@ -343,37 +254,6 @@ This extra CSS will live directly under the exported theme vars.
 }
 ```
 
-### Validation checks
-
-Do not validate the theme only at a high level. Check the chrome system by component type:
-
-- cards and dialogs: surface tint, border weight, highlight, shadow
-- buttons: fill, edge, highlight, shadow, focus ring, variant differentiation
-- inputs and selects: surface, border, placeholder contrast, focus ring, consistency across control types
-- toggles and selection controls: checkbox, switch, radio, slider/progress track and thumb, active/checked contrast
-- popovers and menus: select content, dropdown menus, dialog/sheet overlays and content (portal-rendered surfaces)
-- tables and separators: border contrast and density
-
-If any of those still read as untouched shadcn/ui rather than the target reference, the theme is not done.
-
-When extra CSS is needed for control chrome, prefer slot selectors first and keep class fallbacks:
-
-- target `data-slot` selectors (example: `[data-slot='button']`, `[data-slot='input']`, `[data-slot='select-trigger']`)
-- keep `.cn-*` class selectors as compatibility fallbacks for clonecn previews
-
 ## Preview link
 
 Use `https://clonecn.hunvreus.workers.dev` for preview URLs. The preview link should encode the full raw CSS string into the URL hash and include `mode` and `style`. The app reads `https://clonecn.hunvreus.workers.dev#css=...&mode=light|dark&style=nova|vega|maia|lyra|mira|luma`, injects the CSS, and applies the selected component style. The `css` payload is the source of truth and should include both the theme tokens and any extra CSS overrides.
-
-## Guidelines
-
-- Use OKLCH when possible.
-- Ignore custom fonts, instead just use the default `font-mono` and `font-sans` font families.
-- Keep enough contrast for text and controls. WCAG AA is the floor unless the user explicitly wants a rough mockup.
-- Always provide dark and light themes, unless the user specifically requested otherwise. When doing so, try to use the light and dark themes from the reference (e.g. user provided screenshots, Playwright screenshots, CSS), and if not possible derive specific colors for each theme that take into account the context of the dark or light theme (e.g. you may need a lighter shade for `--primary` when in dark mode).
-- Use tinted near-neutrals for surfaces. Avoid pure `#FFFFFF` and `#000000` unless the user explicitly asks for true black/white.
-- For shadows, tune by mode: lighter/softer in light mode, stronger in dark mode so depth remains visible.
-- Do not stop when the output still looks like the untouched preset. If the result still reads as generic shadcn/ui, the theme is not done.
-- Before returning a theme, verify at minimum that the visible radius matches the reference, the primary color is clearly present in the UI, and the overall chrome no longer looks like the base style family.
-- Before returning a theme, inspect CTA buttons for halo artifacts, mismatched border-vs-fill treatment, and shadows that feel detached from the button edge.
-- Before returning a theme, toggle both light and dark mode and verify that portal controls (select/dropdown/dialog/sheet content and overlays) also switch correctly.

@@ -8,28 +8,27 @@ import {
 } from 'lucide-react'
 
 import { Button } from '#/components/ui/button'
-import { Input } from '#/components/ui/input'
+import { ButtonGroup } from '#/components/ui/button-group'
 import { Label } from '#/components/ui/label'
-import {
-  ResizableHandle,
-  ResizablePanel,
-  ResizablePanelGroup,
-} from '#/components/ui/resizable'
 import {
   Select,
   SelectContent,
+  SelectGroup,
   SelectItem,
+  SelectLabel,
+  SelectSeparator,
   SelectTrigger,
   SelectValue,
 } from '#/components/ui/select'
+import {
+  Sheet,
+  SheetContent,
+  SheetHeader,
+  SheetTitle,
+} from '#/components/ui/sheet'
 import { Skeleton } from '#/components/ui/skeleton'
 import { Spinner } from '#/components/ui/spinner'
 import { Textarea } from '#/components/ui/textarea'
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipTrigger,
-} from '#/components/ui/tooltip'
 import { IconPlaceholder } from '#/components/icon-placeholder'
 import lumaCss from '#/theme/style-luma.css?url'
 import lyraCss from '#/theme/style-lyra.css?url'
@@ -106,6 +105,7 @@ function App() {
   const [css, setCss] = React.useState('')
   const [copied, setCopied] = React.useState<CopyTarget | null>(null)
   const [initialized, setInitialized] = React.useState(false)
+  const [editorOpen, setEditorOpen] = React.useState(false)
   const [style, setStyle] = React.useState<StyleName>(DEFAULT_STYLE)
   const defaultCss = React.useRef('')
   const copyTimeout = React.useRef<number | null>(null)
@@ -227,120 +227,129 @@ function App() {
     setStyle(normalizedStyle)
   }
 
-  const leftPane = (
-    <aside className="flex h-full flex-col border-r bg-background text-foreground">
-      <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-        <h1 className="text-base font-semibold tracking-tight">clonecn</h1>
-        <div className="flex items-center gap-1">
-          {themePending && <Spinner className="text-muted-foreground" />}
-          <Button
-            variant="ghost"
-            disabled={!initialized}
-            onClick={resetTheme}
-          >
-            <IconPlaceholder
-              lucide="RotateCcwIcon"
-              tabler="IconRefresh"
-              hugeicons="RefreshIcon"
-              phosphor="ArrowClockwiseIcon"
-              remixicon="RiRefreshLine"
-            />
-            Reset
-          </Button>
-          <Button
-            variant="ghost"
-            disabled={!initialized}
-            aria-label={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}
-            onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
-          >
-            {mode === 'light' ? <MoonIcon /> : <SunIcon />}
-          </Button>
-        </div>
-      </div>
-
-      {initialized ? (
+  return (
+    <main className="min-h-screen bg-muted text-foreground">
+      {!initialized ? (
+        <InitialLayout />
+      ) : (
         <>
-          <div className="grid shrink-0 gap-2 px-4 pt-4">
-            <Label htmlFor="theme-url">URL</Label>
-            <div className="relative">
-              <Input
-                id="theme-url"
-                readOnly
-                aria-label="Theme URL"
-                value={url}
-                className="!pr-7 font-mono text-xs"
-              />
-              <CopyButton
-                copied={copied === 'url'}
-                label="Copy URL"
-                onClick={() => copy(url, 'url')}
-              />
+          <header className="sticky top-0 z-30 flex h-12 shrink-0 items-center justify-between border-b bg-background/95 px-4 backdrop-blur supports-backdrop-filter:bg-background/80">
+            <h1 className="text-base font-semibold tracking-tight">clonecn</h1>
+            <div className="flex items-center gap-1">
+              {themePending && <Spinner className="text-muted-foreground" />}
+              <ButtonGroup>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-label={copied === 'url' ? 'Copied URL' : 'Copy URL'}
+                  onClick={() => copy(url, 'url')}
+                >
+                  <CopyIcon />
+                  {copied === 'url' ? 'Copied URL' : 'Copy URL'}
+                </Button>
+                <Button
+                  type="button"
+                  size="sm"
+                  variant="ghost"
+                  aria-label={copied === 'css' ? 'Copied CSS' : 'Copy CSS'}
+                  onClick={() => copy(buildCopyCss(css, style), 'css')}
+                >
+                  <CopyIcon />
+                  {copied === 'css' ? 'Copied CSS' : 'Copy CSS'}
+                </Button>
+              </ButtonGroup>
+              <Button
+                type="button"
+                size="sm"
+                variant="ghost"
+                aria-label="Edit theme"
+                onClick={() => setEditorOpen(true)}
+              >
+                <IconPlaceholder
+                  lucide="SlidersHorizontalIcon"
+                  tabler="IconAdjustmentsHorizontal"
+                  hugeicons="SlidersHorizontalIcon"
+                  phosphor="SlidersHorizontalIcon"
+                  remixicon="RiEqualizerLine"
+                />
+                Edit theme
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label="Reset theme"
+                onClick={resetTheme}
+              >
+                <IconPlaceholder
+                  lucide="RotateCcwIcon"
+                  tabler="IconRefresh"
+                  hugeicons="RefreshIcon"
+                  phosphor="ArrowClockwiseIcon"
+                  remixicon="RiRefreshLine"
+                />
+              </Button>
+              <Button
+                type="button"
+                variant="ghost"
+                size="icon-sm"
+                aria-label={`Switch to ${mode === 'light' ? 'dark' : 'light'} mode`}
+                onClick={() => setMode(mode === 'light' ? 'dark' : 'light')}
+              >
+                {mode === 'light' ? <MoonIcon /> : <SunIcon />}
+              </Button>
             </div>
-          </div>
+          </header>
 
-          <div className="min-h-0 flex-1 p-4">
-            <div className="flex h-full min-h-0 flex-col gap-4">
-              <div className="grid shrink-0 gap-2">
-                <Label htmlFor="theme-style">Component style</Label>
-                <Select value={style} onValueChange={changeStyle}>
-                  <SelectTrigger id="theme-style" className="w-full">
-                    <SelectValue placeholder="Select style" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {STYLES.map((item) => (
-                      <SelectItem key={item} value={item}>
-                        {styleLabel(item)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
+          <PreviewPane />
 
-              <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2">
-                <Label htmlFor="theme-css">CSS</Label>
-                <div className="relative min-h-0">
+          <Sheet open={editorOpen} onOpenChange={setEditorOpen} modal={false}>
+            <SheetContent
+              side="right"
+              hideOverlay
+              overlayClassName="bg-transparent supports-backdrop-filter:backdrop-blur-none"
+              className="w-full sm:max-w-xl"
+            >
+              <SheetHeader>
+                <SheetTitle>Edit Style</SheetTitle>
+              </SheetHeader>
+
+              <div className="flex min-h-0 flex-1 flex-col gap-4 px-4 pb-4">
+                <div className="grid shrink-0 gap-2">
+                  <Label htmlFor="theme-style">Component style</Label>
+                  <Select value={style} onValueChange={changeStyle}>
+                    <SelectTrigger id="theme-style" className="w-full">
+                      <SelectValue placeholder="Select style" />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectGroup>
+                        <SelectLabel>Styles</SelectLabel>
+                        <SelectSeparator />
+                        {STYLES.map((item) => (
+                          <SelectItem key={item} value={item}>
+                            {styleLabel(item)}
+                          </SelectItem>
+                        ))}
+                      </SelectGroup>
+                    </SelectContent>
+                  </Select>
+                </div>
+
+                <div className="grid min-h-0 flex-1 grid-rows-[auto_minmax(0,1fr)] gap-2">
+                  <Label htmlFor="theme-css">CSS</Label>
                   <Textarea
                     id="theme-css"
                     aria-label="Theme CSS"
                     value={css}
                     onChange={(event) => setCss(event.target.value)}
-                    className="h-full resize-none !pr-7 font-mono text-xs"
-                  />
-                  <CopyButton
-                    copied={copied === 'css'}
-                    label="Copy CSS"
-                    onClick={() => copy(css, 'css')}
+                    className="h-full min-h-80 resize-none font-mono text-xs"
                   />
                 </div>
               </div>
-            </div>
-          </div>
+            </SheetContent>
+          </Sheet>
         </>
-      ) : (
-        <LeftPaneSkeleton />
-      )}
-    </aside>
-  )
-
-  return (
-    <main className="h-screen overflow-hidden bg-muted text-foreground">
-      {!initialized ? (
-        <InitialLayout />
-      ) : (
-        <ResizablePanelGroup
-          direction="horizontal"
-          className="h-full min-w-0 overflow-hidden"
-        >
-          <ResizablePanel className="min-w-0" defaultSize={36} minSize={28}>
-            {leftPane}
-          </ResizablePanel>
-          <ResizableHandle withHandle />
-          <ResizablePanel className="min-w-0" defaultSize={64} minSize={40}>
-            <div className="h-full">
-              <PreviewPane />
-            </div>
-          </ResizablePanel>
-        </ResizablePanelGroup>
       )}
     </main>
   )
@@ -348,17 +357,17 @@ function App() {
 
 function InitialLayout() {
   return (
-    <div className="grid h-full min-w-0 grid-cols-[minmax(22rem,36%)_minmax(0,1fr)] overflow-hidden">
-      <aside className="flex h-full flex-col border-r bg-background">
-        <div className="flex h-12 shrink-0 items-center justify-between border-b px-4">
-          <Skeleton className="h-5 w-28" />
-          <div className="flex gap-2">
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="size-8" />
-          </div>
+    <div className="min-h-screen">
+      <div className="flex h-12 items-center justify-between border-b bg-background px-4">
+        <Skeleton className="h-5 w-28" />
+        <div className="flex gap-1">
+          <Skeleton className="h-8 w-18" />
+          <Skeleton className="h-8 w-18" />
+          <Skeleton className="h-8 w-24" />
+          <Skeleton className="size-8" />
+          <Skeleton className="size-8" />
         </div>
-        <LeftPaneSkeleton />
-      </aside>
+      </div>
       <PreviewSkeleton />
     </div>
   )
@@ -366,7 +375,7 @@ function InitialLayout() {
 
 const PreviewPane = React.memo(function Preview() {
   return (
-    <div className="h-full overflow-auto">
+    <div>
       <React.Suspense fallback={<PreviewSkeleton />}>
         <Preview02Example />
       </React.Suspense>
@@ -374,22 +383,9 @@ const PreviewPane = React.memo(function Preview() {
   )
 })
 
-function LeftPaneSkeleton() {
-  return (
-    <>
-      <div className="grid shrink-0 gap-2 border-b p-4">
-        <Skeleton className="h-9 w-full" />
-      </div>
-      <div className="flex min-h-0 flex-1 flex-col gap-3 p-4">
-        <Skeleton className="h-full min-h-0 flex-1" />
-      </div>
-    </>
-  )
-}
-
 function PreviewSkeleton() {
   return (
-    <div className="grid h-full min-w-0 grid-cols-3 gap-6 overflow-hidden bg-muted p-10 dark:bg-background">
+    <div className="grid min-h-[calc(100vh-3rem)] min-w-0 grid-cols-3 gap-6 bg-muted p-10 dark:bg-background">
       {Array.from({ length: 12 }).map((_, index) => (
         <Skeleton
           key={index}
@@ -437,21 +433,16 @@ function CopyButton({
   onClick: () => void
 }) {
   return (
-    <Tooltip>
-      <TooltipTrigger asChild>
-        <Button
-          type="button"
-          variant="ghost"
-          size="icon-sm"
-          className="absolute top-0.5 right-0.5"
-          aria-label={copied ? 'Copied' : label}
-          onClick={onClick}
-        >
-          {copied ? <CheckIcon /> : <CopyIcon />}
-        </Button>
-      </TooltipTrigger>
-      <TooltipContent>{copied ? 'Copied!' : 'Copy'}</TooltipContent>
-    </Tooltip>
+    <Button
+      type="button"
+      variant="ghost"
+      size="icon-sm"
+      className="absolute top-0.5 right-0.5"
+      aria-label={copied ? 'Copied' : label}
+      onClick={onClick}
+    >
+      {copied ? <CheckIcon /> : <CopyIcon />}
+    </Button>
   )
 }
 
@@ -515,6 +506,10 @@ function normalizeStyle(input: unknown): StyleName | null {
 
 function styleLabel(style: StyleName) {
   return style[0].toUpperCase() + style.slice(1)
+}
+
+function buildCopyCss(css: string, style: StyleName) {
+  return `/* component style: ${style} */\n\n${css}`
 }
 
 function observeStyleHooks() {
