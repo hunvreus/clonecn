@@ -13,5 +13,8 @@ __unconfig*
 todos.json
 src/routeTree.gen.ts
 .data
+.claude
+.pi
+.vscode
 
 .codex
