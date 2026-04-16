@@ -36,6 +36,7 @@ type D1Like = {
   prepare: (sql: string) => {
     bind: (...args: unknown[]) => {
       first: <T = unknown>() => Promise<T | null>
+      all: <T = unknown>() => Promise<{ results?: T[] } | T[]>
       run: () => Promise<unknown>
     }
   }
@@ -44,6 +45,7 @@ type D1Like = {
 type LocalStore = {
   getById: (id: string) => LocalRow | undefined
   getByHash: (hash: string) => LocalRow | undefined
+  listRecent: (limit: number) => LocalRow[]
   insert: (row: {
     id: string
     hash: string
@@ -130,6 +132,31 @@ export async function getShareById(
   const localStore = await getLocalStore()
   const row = localStore.getById(id)
   return row ? mapRecordRow(row) : null
+}
+
+export async function listShares(
+  options?: { limit?: number },
+  requestContext?: RequestContext,
+): Promise<ShareRecord[]> {
+  const limit = normalizeLimit(options?.limit)
+  const db = getD1Binding(requestContext)
+
+  if (db) {
+    await ensureD1Schema(db)
+    const queryResult = await db
+      .prepare(
+        'SELECT id, css, mode, style, created_at FROM share ORDER BY created_at DESC LIMIT ?1',
+      )
+      .bind(limit)
+      .all<D1Row>()
+    const rows = Array.isArray(queryResult)
+      ? queryResult
+      : (queryResult.results ?? [])
+    return rows.map(mapRecordRow)
+  }
+
+  const localStore = await getLocalStore()
+  return localStore.listRecent(limit).map(mapRecordRow)
 }
 
 export function toShareErrorResponse(error: unknown) {
@@ -346,6 +373,9 @@ async function initLocalStore(): Promise<LocalStore> {
     const getByHashStatement = db.prepare(
       'SELECT id, css, mode, style, created_at FROM share WHERE hash = ?1 LIMIT 1',
     )
+    const listRecentStatement = db.prepare(
+      'SELECT id, css, mode, style, created_at FROM share ORDER BY created_at DESC LIMIT ?1',
+    )
     const insertStatement = db.prepare(
       'INSERT INTO share (id, hash, css, mode, style, created_at) VALUES (?1, ?2, ?3, ?4, ?5, ?6)',
     )
@@ -356,6 +386,9 @@ async function initLocalStore(): Promise<LocalStore> {
       },
       getByHash(hash) {
         return getByHashStatement.get(hash) as LocalRow | undefined
+      },
+      listRecent(limit) {
+        return listRecentStatement.all(limit) as LocalRow[]
       },
       insert(row) {
         insertStatement.run(
@@ -438,4 +471,12 @@ function isUniqueViolation(error: unknown, key: string) {
 
 function isShareId(value: string) {
   return /^[a-z0-9]{6,40}$/.test(value)
+}
+
+function normalizeLimit(value?: number) {
+  if (typeof value !== 'number' || Number.isNaN(value)) {
+    return 24
+  }
+
+  return Math.min(100, Math.max(1, Math.trunc(value)))
 }

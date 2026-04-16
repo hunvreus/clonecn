@@ -139,6 +139,7 @@
   }
 
   body {
+    @apply antialiased selection:bg-primary/20;
     margin: 0;
   }
 }

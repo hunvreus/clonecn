@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 
-import { ThemePage } from '#/routes/index'
+import { ThemePage } from '#/routes/preview'
 
 export const Route = createFileRoute('/share/$id')({
   component: SharedThemeRoute,

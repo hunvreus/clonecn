@@ -5,7 +5,7 @@ description: Generate or modify a shadcn/ui theme from a screenshot, URL, refere
 
 # clonecn - shadcn/ui Theme Generator
 
-Use this skill to create or edit assets for a shadcn/ui theme (component styles like Vega or Nova, CSS variables, and extra CSS styles) either from an existing site/app, or from a general style direction (e.g. "Generate a theme resembling the Apple website", "Create a brutalist theme with orange as the accent color").
+Use this skill to create or edit assets for a shadcn/ui theme (style family like Vega or Nova, CSS variables, and extra CSS styles) either from an existing site/app, or from a general style direction (e.g. "Generate a theme resembling the Apple website", "Create a brutalist theme with orange as the accent color").
 
 ## Inputs
 
@@ -17,18 +17,23 @@ Use this skill to create or edit assets for a shadcn/ui theme (component styles 
 If the user provided a URL or site/app name:
 
 - If you know the site/app, create a description of the style.
-- Retrieve screenshots of the site/app, either through web search or using Playwright if available (see "Playwright" below).
+- Retrieve screenshots of the site/app, either through web search or using Playwright if available (see "Playwright" below). Always try to retrieve both light and dark modes.
 - Retrieve computed CSS styles for key controls (button, input, card, surface, etc) using Playwright if available  (see "Playwright" below).
 
 If the user hasn't provided anything, explain to him what the possible inputs are and ask him to provide one.
 
 ## Playwright
 
-To use Playwright, check if it is available in the environment. Prefer ad hoc Playwright CLI usage via `pnpm dlx playwright@latest ...` when that is practical, because it avoids adding Playwright to the workspace dependencies. For example:
+To use Playwright, check if it is available in the environment. Prefer ad hoc Playwright CLI usage via `pnpm dlx playwright@latest ...` when that is practical, because it avoids adding Playwright to the workspace dependencies.
+
+Use `--color-scheme` to get both light and dark modes, and `--full-page` to get the entire page.
+
+For example:
 
 ```bash
 pnpm dlx playwright@latest install chromium
-pnpm dlx playwright@latest screenshot https://posthog.com posthog.png
+pnpm dlx playwright@latest screenshot --full-page --color-scheme light https://playbooks.com .output/playbooks-light.png
+pnpm dlx playwright@latest screenshot --full-page --color-scheme dark  https://playbooks.com .output/playbooks-dark.png
 ```
 
 If ad hoc CLI usage is not practical and the task clearly benefits from Playwright, then install it in the workspace. If the user provided a screenshot, you do not need it.
@@ -37,37 +42,39 @@ If ad hoc CLI usage is not practical and the task clearly benefits from Playwrig
 
 1. **Design reference**. Based on user input (screenshots, description, URLs, etc), try to define the design reference: colors (primary, secondary, accent, background, foreground, etc), spacing, style (e.g. brutalist, flat, skeuomorphic, minimalist,...), etc.
 2. **Define shadcn/ui theme**. Generate a shadcn/ui theme that matches the design reference as closely as possible (for more details see "shadcn/ui theming"):
-  1. Pick a component style first (Vega, Nova, Maia, Lyra, Mira or Luma) that most closely match the screenshot.
+  1. Pick a style family first (Vega, Nova, Maia, Lyra, Mira or Luma) that most closely match the screenshot.
   2. Generate distinct dark and light blocks of CSS variables to match the design reference.
-  3. If crucial aspects of the design reference cannot be matched with the component style and CSS variables, consider adding additional CSS styles (e.g. background patterns, special treatment on buttons, etc).
-4. **Adjust**. Genereate a preview URLCheck the generated output and compare it to the design reference. Make adjustments if needed.
-3. **Finalize**. Return a concise output (in this exact order):
+  3. If crucial aspects of the design reference cannot be matched with the style family and CSS variables, consider adding additional CSS styles (e.g. background patterns, special treatment on buttons, etc).
+3. **Adjust**. If playwright is available, check the generated output by making a screenshot of the preview URL with `chrome=0` (see "Preview URL" below) and compare it to the design reference. Make adjustments if needed.
+4. **Finalize**. Return a concise output (in this exact order):
   - `**Summary**: {one short style summary}`
-  - (Optional) `**Screenshot**:` followed by the screenshot captured with Playwright (if any).
-  - `**Style**: {component style}`
+  - (Optional) `**Screenshots**:` followed by the Playwright screenshots (light and dark modes) if any.
+  - `**Style**: {style family}`
   - `**CSS**:` followed by a fenced code block with the CSS (both CSS variables and extra CSS if any).
-  - `**Preview**: [Open in your browser]({preview URL})` (see "Preview URL" below). Use the LATEST version of the theme (after adjustments).
+  - `**Preview**: [Open in your browser]({preview URL})` (see "Preview URL" below). Generate a final version of the preview URL with the LATEST version of the theme (after adjustments). Do NOT use the `chrome` option.
 
 ## shadcn/ui theming
 
 shadcn/ui themes are broken down in 3 parts:
 
-- Components styles: Vega, Nova, Maia, Lyra, Mira or Luma.
+- Style family: Vega, Nova, Maia, Lyra, Mira or Luma.
 - CSS variables: `:root` and `.dark` blocks of CSS variables.
-- (Optional) Extra CSS: useful to override or extend styles when CSS variables and component styles are not enough.
+- (Optional) Extra CSS: useful to override or extend styles when CSS variables and the selected style family are not enough.
 
-### Components styles
+### Style families
 
-Baseline shadcn/ui style families that define the default shape language that sits underneath your theme tokens: component spacing, density, border treatment, default shadow behavior, and how rounded or sharp controls feel.
+Baseline shadcn/ui styles that define the default shape language that sits underneath your theme tokens: component spacing, density, border treatment, default shadow behavior, and how rounded or sharp controls feel.
 
 Pick one of the following 6 options based on what is closest to the design direction:
 
-- `nova`: balanced and general-purpose, with medium rounding (`rounded-lg` in many controls) and standard app density. Good default when the reference is modern but not highly stylized.
-- `vega`: similar to Nova but a little firmer and more structured, with more obvious outline/button treatment and medium rounding (`rounded-md` to `rounded-xl`). Good for denser product UIs.
-- `maia`: the softest and most rounded family, with pill-like buttons and large radii (`rounded-4xl`, `rounded-full`). Good for friendlier or more consumer-feeling interfaces.
-- `lyra`: the sharpest family, with many controls using `rounded-none`, smaller text, and a flatter, more editorial feel. Good when the reference is square, restrained, or intentionally severe.
-- `mira`: compact and product-dense, with smaller text, tighter spacing, and modest rounding (`rounded-md`, `rounded-sm`). Good for tighter utility-heavy app UIs.
-- `luma`: rounded and airy, especially in form controls (`rounded-3xl`, `rounded-full`), with softer inputs and brighter, more open chrome. Good for glossy or friendly interfaces with soft controls.
+- `nova`: medium rounding, regular density. Buttons are `rounded-lg text-sm` (`h-7`/`h-8`/`h-9` for `sm`/`default`/`lg` sizes), inputs are `h-8 rounded-lg`.
+- `vega`: firmer outlines and slightly larger controls than `nova`. Buttons are `rounded-md` (`h-8`/`h-9`/`h-10` for `sm`/`default`/`lg` sizes), inputs are `h-9 rounded-md`, outline controls often feel more pronounced (`shadow-xs` on some controls).
+- `maia`: very rounded controls, generous horizontal padding. Buttons are `rounded-4xl` (`h-8`/`h-9`/`h-10` for `sm`/`default`/`lg` sizes), inputs are `h-9 rounded-4xl`.
+- `lyra`: square corners, compact spacing, smaller typography, finer rings. Buttons are `rounded-none text-xs ring-1` (`h-7`/`h-8`/`h-9` for `sm`/`default`/`lg` sizes), inputs are `h-8 rounded-none text-xs ring-1`.
+- `mira`: tightest spacing, smallest control profile. Buttons are `text-xs` and tighter padding (`h-6`/`h-7`/`h-8` for `sm`/`default`/`lg` sizes), inputs are `h-7 rounded-md`.
+- `luma`: very rounded controls, softer/fill-heavy surfaces, larger form controls. Buttons are `rounded-4xl` and tighter padding (`h-8`/`h-9`/`h-10` for `sm`/`default`/`lg` sizes), inputs are `h-9 rounded-3xl`.
+
+Guardrail: do not default to `luma`. Pick `luma` only when the reference clearly shows multiple soft-pill signals (e.g. pill buttons + highly rounded form controls + filled/soft control surfaces). If mixed/unclear, prefer `nova` (or `vega` for denser enterprise chrome).
 
 ### CSS variables (aka theme tokens)
 
@@ -103,13 +110,58 @@ Allow lightweight CSS treatment beyond vars when it materially improves resembla
 - Custom radius language,
 - Etc.
 
+## Fonts
+
+Fonts should be handled directly in the generated CSS so users need zero extra setup.
+
+Use this pattern:
+
+1. Define `--font-sans` and `--font-mono` in `:root`.
+2. Assign them to crucial areas (e.g. `body`, headings, and code-like UI).
+3. If custom fonts are needed, use **Google Fonts via CSS `@import`** (not framework/font-loader setup).
+4. Override fonts in `.dark` only when dark mode typography actually differs.
+
+```css
+@import url('https://fonts.googleapis.com/css2?family=Space+Grotesk:wght@400;500;700&family=IBM+Plex+Mono:wght@400;500;700&display=swap');
+
+:root {
+  --font-sans: 'Space Grotesk', ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, 'Helvetica Neue', Arial, 'Noto Sans', sans-serif;
+  --font-mono: 'IBM Plex Mono', ui-monospace, SFMono-Regular, Menlo, Monaco, Consolas, 'Liberation Mono', 'Courier New', monospace;
+}
+
+.dark {
+  /* Optional: only if dark mode needs different font choices */
+  /* --font-sans: ...; */
+  /* --font-mono: ...; */
+}
+
+body { font-family: var(--font-sans); }
+h1, h2, h3 { font-family: var(--font-sans); }
+code, pre, kbd, samp { font-family: var(--font-mono); }
+```
+
 ### Guidelines
 
 - Always provide dark and light themes, unless the user specifically requested otherwise. When doing so, try to use the light and dark themes from the reference (e.g. user provided screenshots, Playwright screenshots, CSS), and if not possible derive specific colors for each theme that take into account the context of the dark or light theme (e.g. you may need a lighter shade for `--primary` when in dark mode).
-- Prefer OKLCH colors.
-- Ignore custom fonts, instead just use the default `font-mono` and `font-sans` font families.
 - shadcn/ui gives components default styles (border, radius, shadow, etc). Do not assume you are styling blank elements.
 - For `--radius`, use `rem` not `px` and keep it in a sane range: `0rem` to `1.25rem` (hard max `2rem` only for explicit user requests).
+- For components that should look flat, avoid adding visible borders; consider disabling ring and shadow, and keep borders transparent unless the reference clearly shows a stroke. This is particularly important for buttons and inputs.
+- Colors:
+  - Pay special attention to the key colors:
+    - `--background` . `--foreground` define the background of the app and default color of the text.
+    - `--primary` / `--primary-foreground` for the background and text of primary buttons or ctas.
+    - `--accent` / `--accent-foreground` for the hover/active state for tables, sidebars, dropdown menus, etc.
+    - Other colors that may be easy to pick like `--sidebar` / `--sidebar-foreground` and `--card` / `--card-foreground` since they're easily identifiable components.
+  - Prefer OKLCH colors.
+- Fonts:
+  - Do not define `--font-sans` as a mono font, or `--font-mono` as a sans font.
+  - Assign fonts explicitly to elements (`body`, headings, `code`, etc) as well as component-specific selectors when needed. For example, if all elements on the page are using a mono font, except for the buttons that may use a sans font, we would use `body { @apply font-mono; }` and `.cn-button { @apply font-sans }`.
+  - Only override font vars in `.dark` when dark mode typography is different from light mode typography.
+  - If a serif font is needed, define `--font-serif` and use it in the same way we use `--font-mono` and `--font-sans`.
+  - For custom fonts, use **Google Fonts only** and load them with CSS `@import url('https://fonts.googleapis.com/...&display=swap')`. Do not require extra setup (`next/font`, npm font packages, local font files, manual HTML edits).
+  - Keep default stacks intact: keep default sans fallbacks in `--font-sans`, and default mono fallbacks in `--font-mono`.
+  - Do not list every `cn-*` class. Include only high-impact selectors (e.g. `.cn-button`, `.cn-input`, `.cn-textarea`, `.cn-select-trigger`, `.cn-native-select`, `.cn-kbd`) when they materially improve resemblance.
+  - For more details on how to use fonts, see "Fonts" above.
 - Buttons:
   - Buttons have the following classes:
     - `cn-button group/button inline-flex shrink-0 items-center justify-center whitespace-nowrap transition-all outline-none select-none disabled:pointer-events-none disabled:opacity-50 [&_svg]:pointer-events-none [&_svg]:shrink-0`
@@ -256,17 +308,18 @@ Allow lightweight CSS treatment beyond vars when it materially improves resembla
 
 ## Preview URL
 
-The preview URL should encode the full raw CSS string (Base64URL-encoded UTF-8) into the URL hash and include `mode` and `style` (e.g. `https://clonecn.com#css={encoded CSS}&mode=light|dark&style=nova|vega|maia|lyra|mira|luma`).
+The preview URL should encode the full raw CSS string (Base64URL-encoded UTF-8) into the URL hash and include `mode` and `style`. It can also include a query param for preview chrome: `chrome=0|1` (`0` hides header/frame, `1` shows it). Example: `https://clonecn.com/?chrome=0#css={encoded CSS}&mode=light|dark&style=nova|vega|maia|lyra|mira|luma`.
 
 Use `scripts/encode.js` to generate the preview URL:
 
 ```bash
-node scripts/encode.js --css ./theme.css --mode dark --style vega
+node scripts/encode.js --css ./theme.css --mode dark --style vega --chrome 0
 ```
 
 Parameters:
 
 - `--css <path>`: path to the CSS source file to encode (should include the full`:root` block, full `.dark` block, and any extra CSS overrides). Default: `./theme.css`.
 - `--mode <light|dark>`: initial preview mode in the URL hash. Default: `dark`.
-- `--style <nova|vega|maia|lyra|mira|luma>`: component style family in the URL hash. Default: `vega`.
+- `--style <nova|vega|maia|lyra|mira|luma>`: style family in the URL hash. Default: `vega`.
+- `--chrome <0|1>`: preview chrome in URL query (`0` hides header/frame, `1` shows it). Default: `1`. Only use in the adjust step, do not use for output.
 - `--origin <url>`: preview app origin. Default: `https://clonecn.com`.

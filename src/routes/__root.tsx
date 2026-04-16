@@ -8,6 +8,14 @@ import {
 import { TanStackRouterDevtoolsPanel } from '@tanstack/react-router-devtools'
 import { TanStackDevtools } from '@tanstack/react-devtools'
 
+import { Button } from '#/components/ui/button'
+import {
+  Empty,
+  EmptyContent,
+  EmptyDescription,
+  EmptyHeader,
+  EmptyTitle,
+} from '#/components/ui/empty'
 import { TooltipProvider } from '#/components/ui/tooltip'
 
 import appCss from '../styles.css?url'
@@ -113,18 +121,21 @@ export const Route = createRootRoute({
 function NotFound() {
   return (
     <main className="flex min-h-screen items-center justify-center bg-background px-6 text-foreground">
-      <div className="flex max-w-sm flex-col items-center gap-3 text-center">
-        <p className="text-sm font-medium text-muted-foreground">Not found</p>
-        <h1 className="text-2xl font-semibold tracking-tight">
-          This page does not exist.
-        </h1>
-        <Link
-          to="/"
-          className="text-sm font-medium text-primary underline underline-offset-4"
-        >
-          Back to clonecn
-        </Link>
-      </div>
+      <Empty className="max-w-lg rounded-xl border bg-card px-6 py-8">
+        <EmptyHeader className="gap-2">
+          <EmptyTitle className="text-2xl font-semibold tracking-tight">
+            Page not found
+          </EmptyTitle>
+          <EmptyDescription className="text-sm">
+            The page you are looking for does not exist.
+          </EmptyDescription>
+        </EmptyHeader>
+        <EmptyContent className="mt-6">
+          <Button asChild size="sm">
+            <Link to="/">Back to clonecn</Link>
+          </Button>
+        </EmptyContent>
+      </Empty>
     </main>
   )
 }
@@ -136,7 +147,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <HeadContent />
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
       </head>
-      <body className="font-sans antialiased selection:bg-primary/20">
+      <body>
         <TooltipProvider>{children}</TooltipProvider>
         <OptionalDevtools />
         <Scripts />
